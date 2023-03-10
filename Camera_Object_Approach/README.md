@@ -11,7 +11,6 @@
 ###### The camera will now animate to the selected object with depth of field. The animation length is set to 250 frames.
 
 ##  Here's how to install the plugin:
-======
 
 1. Download the py file.
 
