@@ -1,8 +1,6 @@
 # Camera object approaching animation
-======
 
 ##  Here's how to use the plugin:
-======
 
 1. Select the object you want the camera to animate to.
 
