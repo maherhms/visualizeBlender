@@ -1,5 +1,7 @@
 # Camera object approaching animation
 
+> The camera will animate to the selected object with depth of field. The animation length is set to 250 frames
+
 ##  Here's how to use the plugin:
 
 1. Select the object you want the camera to animate to.
