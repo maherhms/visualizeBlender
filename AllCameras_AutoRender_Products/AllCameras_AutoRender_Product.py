@@ -1,11 +1,11 @@
 bl_info = {
-    "name": "Render From Each Camera (Non-Blocking)",
+    "name": "MultiCam Auto Render Pro",
     "blender": (2, 80, 0),
     "category": "Render",
-    "description": "Render scenes from each camera and save them with incrementing names based on user input in a specified directory, while remaining interactive",
+    "description": "Automatically renders scenes from each camera with a progress indicator and saves them with incrementing names based on user input in a specified directory.",
     "author": "Your Name",
     "version": (1, 0, 0),
-    "location": "View3D > Sidebar > My Panel",
+    "location": "View3D > Sidebar > Mahersdesigns",
 }
 
 import bpy
@@ -14,10 +14,6 @@ import os
 def ensure_directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
-
-def render_complete(scene, dummy):
-    bpy.app.handlers.render_complete.remove(render_complete)
-    bpy.ops.wm.modal_handler_finish()
 
 class RENDER_OT_from_each_camera(bpy.types.Operator):
     """Render From Each Camera"""
@@ -38,12 +34,14 @@ class RENDER_OT_from_each_camera(bpy.types.Operator):
                 filepath = os.path.join(self._directory, f"{self._base_filename}{self._index + 1}.png")
                 context.scene.render.filepath = filepath
                 bpy.ops.render.render(write_still=True)
-                bpy.app.handlers.render_complete.append(render_complete)
+                self.report({'INFO'}, f"Rendering: {camera.name} ({self._index + 1}/{len(self._cameras)})")
+                context.scene.render_progress = f"Rendering: {camera.name} ({int((self._index + 1) / len(self._cameras) * 100)}%)"
                 self._index += 1
                 return {'RUNNING_MODAL'}
             else:
                 context.scene.camera = self._original_camera
                 self.cancel(context)
+                context.scene.render_progress = "Rendering completed."
                 self.report({'INFO'}, "Rendering completed.")
                 return {'FINISHED'}
         return {'PASS_THROUGH'}
@@ -77,7 +75,7 @@ class RENDER_PT_custom_panel(bpy.types.Panel):
     bl_idname = "RENDER_PT_custom_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'My Panel'
+    bl_category = 'Mahersdesigns'  # Updated category name
 
     def draw(self, context):
         layout = self.layout
@@ -85,6 +83,7 @@ class RENDER_PT_custom_panel(bpy.types.Panel):
         layout.prop(settings, "path")
         layout.prop(settings, "base_name")
         layout.operator("render.from_each_camera")
+        layout.label(text=context.scene.render_progress if "render_progress" in context.scene else "No render in progress.")
 
 def register():
     class RenderSettings(bpy.types.PropertyGroup):
@@ -100,11 +99,13 @@ def register():
     
     bpy.utils.register_class(RenderSettings)
     bpy.types.Scene.render_settings = bpy.props.PointerProperty(type=RenderSettings)
+    bpy.types.Scene.render_progress = bpy.props.StringProperty(name="Render Progress")
     bpy.utils.register_class(RENDER_OT_from_each_camera)
     bpy.utils.register_class(RENDER_PT_custom_panel)
 
 def unregister():
     del bpy.types.Scene.render_settings
+    del bpy.types.Scene.render_progress
     bpy.utils.unregister_class(RenderSettings)
     bpy.utils.unregister_class(RENDER_OT_from_each_camera)
     bpy.utils.unregister_class(RENDER_PT_custom_panel)

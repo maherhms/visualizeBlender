@@ -1,9 +1,9 @@
 bl_info = {
     "name": "Animate Camera To Object",
-    "author": "Maher",
+    "author": "Maher Salah",
     "version": (1, 0),
     "blender": (2, 80, 0),
-    "location": "View3D > Sidebar > Camera",
+    "location": "View3D > Sidebar > Mahersdesigns",
     "description": "Animate camera to a selected object with depth of field",
     "category": "Camera"
 }
