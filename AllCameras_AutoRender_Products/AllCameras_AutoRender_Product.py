@@ -1,8 +1,8 @@
 bl_info = {
-    "name": "Render From Each Camera",
+    "name": "Render From Each Camera (Non-Blocking)",
     "blender": (2, 80, 0),
     "category": "Render",
-    "description": "Render scenes from each camera and save them with incrementing names based on user input in a specified directory",
+    "description": "Render scenes from each camera and save them with incrementing names based on user input in a specified directory, while remaining interactive",
     "author": "Your Name",
     "version": (1, 0, 0),
     "location": "View3D > Sidebar > My Panel",
@@ -15,37 +15,61 @@ def ensure_directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
+def render_complete(scene, dummy):
+    bpy.app.handlers.render_complete.remove(render_complete)
+    bpy.ops.wm.modal_handler_finish()
+
 class RENDER_OT_from_each_camera(bpy.types.Operator):
     """Render From Each Camera"""
     bl_idname = "render.from_each_camera"
     bl_label = "Render From Each Camera"
     bl_options = {'REGISTER', 'UNDO'}
 
+    _timer = None
+    _cameras = []
+    _index = 0
+    _original_camera = None
+
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if self._index < len(self._cameras):
+                camera = self._cameras[self._index]
+                context.scene.camera = camera
+                filepath = os.path.join(self._directory, f"{self._base_filename}{self._index + 1}.png")
+                context.scene.render.filepath = filepath
+                bpy.ops.render.render(write_still=True)
+                bpy.app.handlers.render_complete.append(render_complete)
+                self._index += 1
+                return {'RUNNING_MODAL'}
+            else:
+                context.scene.camera = self._original_camera
+                self.cancel(context)
+                self.report({'INFO'}, "Rendering completed.")
+                return {'FINISHED'}
+        return {'PASS_THROUGH'}
+
+    def execute(self, context):
+        settings = context.scene.render_settings
+        self._base_filename = settings.base_name
+        self._directory = bpy.path.abspath(settings.path)
+        ensure_directory(self._directory)
+        self._original_camera = context.scene.camera
+        self._cameras = [obj for obj in context.scene.objects if obj.type == 'CAMERA']
+        self._index = 0
+
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def cancel(self, context):
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+
     @classmethod
     def poll(cls, context):
         settings = context.scene.render_settings
         return settings.path.strip() != '' and settings.base_name.strip() != ''
-
-    def execute(self, context):
-        settings = context.scene.render_settings
-        base_filename = settings.base_name
-        directory = bpy.path.abspath(settings.path)
-        ensure_directory(directory)
-        scene = context.scene
-        original_camera = scene.camera
-        file_number = 1
-
-        for obj in scene.objects:
-            if obj.type == 'CAMERA':
-                scene.camera = obj
-                filepath = os.path.join(directory, f"{base_filename}{file_number}.png")
-                scene.render.filepath = filepath
-                bpy.ops.render.render(write_still=True)
-                file_number += 1
-
-        scene.camera = original_camera
-        self.report({'INFO'}, "Rendering completed.")
-        return {'FINISHED'}
 
 class RENDER_PT_custom_panel(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
