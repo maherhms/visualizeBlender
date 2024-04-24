@@ -2,7 +2,7 @@ bl_info = {
     "name": "Render From Each Camera",
     "blender": (2, 80, 0),
     "category": "Render",
-    "description": "Render scenes from each camera and save them with incrementing names in a specified directory",
+    "description": "Render scenes from each camera and save them with incrementing names based on user input in a specified directory",
     "author": "Your Name",
     "version": (1, 0, 0),
     "location": "View3D > Sidebar > My Panel",
@@ -23,11 +23,13 @@ class RENDER_OT_from_each_camera(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene.renderpath_prop.strip() != ''
+        settings = context.scene.render_settings
+        return settings.path.strip() != '' and settings.base_name.strip() != ''
 
     def execute(self, context):
-        base_filename = "productname"
-        directory = bpy.path.abspath(context.scene.renderpath_prop)
+        settings = context.scene.render_settings
+        base_filename = settings.base_name
+        directory = bpy.path.abspath(settings.path)
         ensure_directory(directory)
         scene = context.scene
         original_camera = scene.camera
@@ -55,21 +57,31 @@ class RENDER_PT_custom_panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-        layout.prop(scene, "renderpath_prop")
+        settings = context.scene.render_settings
+        layout.prop(settings, "path")
+        layout.prop(settings, "base_name")
         layout.operator("render.from_each_camera")
 
 def register():
-    bpy.types.Scene.renderpath_prop = bpy.props.StringProperty(
-        name="Render Path",
-        subtype='DIR_PATH',
-        description="Directory where the renders will be saved"
-    )
+    class RenderSettings(bpy.types.PropertyGroup):
+        path: bpy.props.StringProperty(
+            name="Render Path",
+            subtype='DIR_PATH',
+            description="Directory where the renders will be saved"
+        )
+        base_name: bpy.props.StringProperty(
+            name="Base Filename",
+            description="Base filename for rendered images"
+        )
+    
+    bpy.utils.register_class(RenderSettings)
+    bpy.types.Scene.render_settings = bpy.props.PointerProperty(type=RenderSettings)
     bpy.utils.register_class(RENDER_OT_from_each_camera)
     bpy.utils.register_class(RENDER_PT_custom_panel)
 
 def unregister():
-    del bpy.types.Scene.renderpath_prop
+    del bpy.types.Scene.render_settings
+    bpy.utils.unregister_class(RenderSettings)
     bpy.utils.unregister_class(RENDER_OT_from_each_camera)
     bpy.utils.unregister_class(RENDER_PT_custom_panel)
 
